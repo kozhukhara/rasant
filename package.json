@@ -1,0 +1,30 @@
+{
+  "name": "rasant",
+  "version": "1.0.0",
+  "description": "Swift, lightweight, and versatile HTTP framework.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "npx nodemon --watch \"src/**\",\"test/**\" --ext \"ts,json\" --ignore \"src/**/*.spec.ts\" --exec \"ts-node test/app.ts\"\n",
+    "build": "tsup",
+    "format": "npx prettier . --write"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/formidable": "^3.4.5",
+    "formidable": "^3.5.1",
+    "prettier": "3.1.1",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "formidable": "^3.5.1"
+  }
+}
