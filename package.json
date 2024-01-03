@@ -4,7 +4,7 @@
   "description": "Swift, lightweight, and versatile HTTP framework.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kozhukhara/rasant.git"
+    "url": "git+https://github.com/kozhukhara/rasant.git"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -19,7 +19,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@types/formidable": "^3.4.5",
     "formidable": "^3.5.1",
