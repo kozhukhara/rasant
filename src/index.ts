@@ -16,7 +16,7 @@ import { parse as parseUrl } from "url";
 import { join } from "path";
 import { createReadStream, stat } from "fs";
 
-export class Rasant {
+export default class Rasant {
   private readonly routerTree: any;
   private server!: http.Server;
   private readonly config: RasantConfig;
@@ -70,7 +70,7 @@ export class Rasant {
     req: IncomingMessage,
     res: ServerResponse,
   ): Promise<boolean> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (!this.config.app.publicFolder) return resolve(false);
       const requestedPath = req.url || "/";
       let fullPath = join(this.config.app.publicFolder, requestedPath);
