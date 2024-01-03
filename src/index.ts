@@ -27,7 +27,7 @@ export default class Rasant {
 
   constructor(config: RasantConfig) {
     this.config = config;
-    this.routerTree = this.buildRadixTree(config.router);
+    this.routerTree = this.buildRadixTree(config.router || []);
   }
 
   private buildRadixTree(routes: Route[]): any {
