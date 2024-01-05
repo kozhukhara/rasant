@@ -1,12 +1,12 @@
 import { IncomingMessage as IncomingMessage$1, ServerResponse as ServerResponse$1 } from 'http';
+import { Options } from 'formidable';
 
 type Wildcard = "*";
-type httpVerbs = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS" | "CONNECT" | "HEAD" | Wildcard;
-type CaseInsensitive<T extends string> = string extends T ? string : T extends `${infer F1}${infer F2}${infer R}` ? `${Uppercase<F1> | Lowercase<F1>}${Uppercase<F2> | Lowercase<F2>}${CaseInsensitive<R>}` : T extends `${infer F}${infer R}` ? `${Uppercase<F> | Lowercase<F>}${CaseInsensitive<R>}` : "";
-type Verbs = CaseInsensitive<httpVerbs>;
+type Verbs = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS" | "CONNECT" | "HEAD" | Wildcard;
 interface AppConfig {
     port: number;
     publicFolder?: string;
+    logging?: boolean;
 }
 interface Cors {
     allowedOrigins?: string[] | Wildcard;
@@ -17,6 +17,7 @@ interface Cors {
 interface RasantConfig {
     router: Route[];
     cors?: Cors;
+    uploads?: Options;
     app: AppConfig;
 }
 type Header = {
@@ -81,7 +82,7 @@ declare class Rasant {
     constructor(config: RasantConfig);
     private buildRadixTree;
     serveStaticFiles(req: IncomingMessage, res: ServerResponse): Promise<boolean>;
-    handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void>;
+    handleRequest(req: IncomingMessage, res: ServerResponse): Promise<ServerResponse>;
     private findHandler;
     private executeMiddlewaresAndHandler;
     private handleCors;

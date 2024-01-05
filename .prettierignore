@@ -1,4 +1,4 @@
 # Ignore artifacts:
-dist
-build
+dist/
+build/
 coverage

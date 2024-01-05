@@ -3,11 +3,10 @@ import {
   HandlerOption,
   IncomingMessage,
   Middleware,
-  parseBody,
+  getParseBodyFunction,
   resExt,
   Route,
   ServerResponse,
-  timeDiff,
   Verbs,
   WILDCARD,
 } from "./lib";
@@ -15,6 +14,7 @@ import http from "http";
 import { parse as parseUrl } from "url";
 import { join } from "path";
 import { createReadStream, stat } from "fs";
+import { performance } from "perf_hooks";
 
 export class Rasant {
   private readonly routerTree: any;
@@ -98,21 +98,19 @@ export class Rasant {
   public async handleRequest(
     req: IncomingMessage,
     res: ServerResponse,
-  ): Promise<void> {
-    if (await this.serveStaticFiles(req, res)) return;
+  ): Promise<ServerResponse> {
+    if (await this.serveStaticFiles(req, res)) return res;
     const [route, handler] = this.findHandler(req);
     if (!route) {
       res.statusCode = 404;
       res.statusMessage = "Not Found";
-      res.end("Not Found");
-      return;
+      return res.end(res.statusMessage);
     }
 
     if (!handler) {
       res.statusCode = 405;
       res.statusMessage = "Method Not Allowed";
-      res.end("Method Not Allowed");
-      return;
+      return res.end(res.statusMessage);
     }
 
     if (
@@ -120,10 +118,10 @@ export class Rasant {
       req.method === "PUT" ||
       req.method === "PATCH"
     ) {
-      req.parseBody = parseBody;
+      req.parseBody = getParseBodyFunction(this.config.uploads);
     }
 
-    await this.executeMiddlewaresAndHandler(req, res, route, handler);
+    return this.executeMiddlewaresAndHandler(req, res, route, handler);
   }
 
   private findHandler(
@@ -191,7 +189,7 @@ export class Rasant {
     res: ServerResponse,
     route: Route,
     handler: HandlerOption,
-  ): Promise<void> {
+  ): Promise<ServerResponse> {
     const routeMiddlewares: Middleware[] = route.middleware
       ? [].concat(route.middleware as never[])
       : [];
@@ -214,6 +212,7 @@ export class Rasant {
     };
 
     await executeMiddleware(0);
+    return res;
   }
 
   private handleCors(req: IncomingMessage, res: ServerResponse): void {
@@ -255,14 +254,25 @@ export class Rasant {
 
   start(callback?: () => any) {
     this.server = http.createServer(async (req, res) => {
-      const time = Date.now();
+      performance.mark("T0");
       Object.assign(res, resExt);
       this.handleCors(req as IncomingMessage, res as ServerResponse);
-      await this.handleRequest(req as IncomingMessage, res as ServerResponse);
-      return this.logger.log(
-        `${req.method?.padStart(7, " ")} ${req.url}`,
-        timeDiff(time, Date.now()),
-      );
+      return this.handleRequest(
+        req as IncomingMessage,
+        res as ServerResponse,
+      ).then((res) => {
+        performance.mark("T1");
+        performance.measure("T[01]", "T0", "T1");
+        const measure = performance.getEntriesByName("T[01]")[0];
+        performance.clearMeasures("T[01]");
+        if (this.config.app.logging)
+          this.logger.log(
+            `${req.method?.padStart(7, " ")} ${req.url} →`,
+            res.statusCode,
+            `(${measure.duration.toFixed(3)}ms)`,
+          );
+        return;
+      });
     });
     this.server.listen(this.config.app.port, () =>
       callback ? callback() : void 0,

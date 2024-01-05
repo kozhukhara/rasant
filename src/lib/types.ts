@@ -2,12 +2,13 @@ import {
   IncomingMessage as IncomingMessageI,
   ServerResponse as ServerResponseI,
 } from "http";
+import { Options as UploadOptions } from "formidable";
 
 export const WILDCARD = "*";
 
 export type Wildcard = "*";
 
-type httpVerbs =
+export type Verbs =
   | "GET"
   | "POST"
   | "PUT"
@@ -18,21 +19,10 @@ type httpVerbs =
   | "HEAD"
   | Wildcard;
 
-type CaseInsensitive<T extends string> = string extends T
-  ? string
-  : T extends `${infer F1}${infer F2}${infer R}`
-    ? `${Uppercase<F1> | Lowercase<F1>}${
-        | Uppercase<F2>
-        | Lowercase<F2>}${CaseInsensitive<R>}`
-    : T extends `${infer F}${infer R}`
-      ? `${Uppercase<F> | Lowercase<F>}${CaseInsensitive<R>}`
-      : "";
-
-export type Verbs = CaseInsensitive<httpVerbs>;
-
 export interface AppConfig {
   port: number;
   publicFolder?: string;
+  logging?: boolean;
 }
 
 export interface Cors {
@@ -45,6 +35,7 @@ export interface Cors {
 export interface RasantConfig {
   router: Route[];
   cors?: Cors;
+  uploads?: UploadOptions;
   app: AppConfig;
 }
 

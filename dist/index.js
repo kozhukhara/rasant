@@ -62,35 +62,33 @@ var import_querystring = require("querystring");
 var formidable = __toESM(require("formidable"));
 var import_path = require("path");
 var import_fs = require("fs");
-var timeDiff = (start, end) => end - start > 999 ? ((end - start) / 1e3).toFixed(3) : end - start + "ms";
-function parseBody() {
-  return new Promise((resolve, reject) => {
-    const contentType = this.headers["content-type"];
-    if (contentType === "application/json") {
-      let body = "";
-      this.on("data", (chunk) => body += chunk);
-      this.on("end", () => resolve(JSON.parse(body)));
-    } else if (contentType === "application/x-www-form-urlencoded") {
-      let body = "";
-      this.on("data", (chunk) => body += chunk);
-      this.on("end", () => resolve((0, import_querystring.parse)(body)));
-    } else if (contentType && contentType.startsWith("multipart/form-data")) {
-      const form = new formidable.IncomingForm({
-        uploadDir: (0, import_path.join)(__dirname, "tmp"),
-        keepExtensions: true
-      });
-      form.parse(this, (err, fields, files) => {
-        if (err)
-          return reject(err);
-        resolve({ fields, files });
-      });
-    } else {
-      let body = "";
-      this.on("data", (chunk) => body += chunk);
-      this.on("end", () => resolve(body));
-    }
-  });
-}
+var getParseBodyFunction = (options) => {
+  return function parseBody() {
+    return new Promise((resolve, reject) => {
+      const contentType = this.headers["content-type"];
+      if (contentType === "application/json") {
+        let body = "";
+        this.on("data", (chunk) => body += chunk);
+        this.on("end", () => resolve(JSON.parse(body)));
+      } else if (contentType === "application/x-www-form-urlencoded") {
+        let body = "";
+        this.on("data", (chunk) => body += chunk);
+        this.on("end", () => resolve((0, import_querystring.parse)(body)));
+      } else if (contentType && contentType.startsWith("multipart/form-data")) {
+        const form = new formidable.IncomingForm(options);
+        form.parse(this, (err, fields, files) => {
+          if (err)
+            return reject(err);
+          resolve({ fields, files });
+        });
+      } else {
+        let body = "";
+        this.on("data", (chunk) => body += chunk);
+        this.on("end", () => resolve(body));
+      }
+    });
+  };
+};
 var resExt = {
   file(path, options) {
     return new Promise((resolve, reject) => {
@@ -145,13 +143,14 @@ var import_http = __toESM(require("http"));
 var import_url = require("url");
 var import_path2 = require("path");
 var import_fs2 = require("fs");
+var import_perf_hooks = require("perf_hooks");
 var Rasant = class {
   constructor(config) {
     this.logger = {
       log: (...args) => console.log(`[${(/* @__PURE__ */ new Date()).toLocaleString()}]`, ...args)
     };
     this.config = config;
-    this.routerTree = this.buildRadixTree(config.router);
+    this.routerTree = this.buildRadixTree(config.router || []);
   }
   buildRadixTree(routes) {
     let rootNode = {};
@@ -184,7 +183,7 @@ var Rasant = class {
   }
   serveStaticFiles(req, res) {
     return __async(this, null, function* () {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         if (!this.config.app.publicFolder)
           return resolve(false);
         const requestedPath = req.url || "/";
@@ -210,24 +209,22 @@ var Rasant = class {
   handleRequest(req, res) {
     return __async(this, null, function* () {
       if (yield this.serveStaticFiles(req, res))
-        return;
+        return res;
       const [route, handler] = this.findHandler(req);
       if (!route) {
         res.statusCode = 404;
         res.statusMessage = "Not Found";
-        res.end("Not Found");
-        return;
+        return res.end(res.statusMessage);
       }
       if (!handler) {
         res.statusCode = 405;
         res.statusMessage = "Method Not Allowed";
-        res.end("Method Not Allowed");
-        return;
+        return res.end(res.statusMessage);
       }
       if (req.method === "POST" || req.method === "PUT" || req.method === "PATCH") {
-        req.parseBody = parseBody;
+        req.parseBody = getParseBodyFunction(this.config.uploads);
       }
-      yield this.executeMiddlewaresAndHandler(req, res, route, handler);
+      return this.executeMiddlewaresAndHandler(req, res, route, handler);
     });
   }
   findHandler(req) {
@@ -295,6 +292,7 @@ var Rasant = class {
         }
       });
       yield executeMiddleware(0);
+      return res;
     });
   }
   handleCors(req, res) {
@@ -327,15 +325,26 @@ var Rasant = class {
   }
   start(callback) {
     this.server = import_http.default.createServer((req, res) => __async(this, null, function* () {
-      var _a;
-      const time = Date.now();
+      import_perf_hooks.performance.mark("T0");
       Object.assign(res, resExt);
       this.handleCors(req, res);
-      yield this.handleRequest(req, res);
-      return this.logger.log(
-        `${(_a = req.method) == null ? void 0 : _a.padStart(7, " ")} ${req.url}`,
-        timeDiff(time, Date.now())
-      );
+      return this.handleRequest(
+        req,
+        res
+      ).then((res2) => {
+        var _a;
+        import_perf_hooks.performance.mark("T1");
+        import_perf_hooks.performance.measure("T[01]", "T0", "T1");
+        const measure = import_perf_hooks.performance.getEntriesByName("T[01]")[0];
+        import_perf_hooks.performance.clearMeasures("T[01]");
+        if (this.config.app.logging)
+          this.logger.log(
+            `${(_a = req.method) == null ? void 0 : _a.padStart(7, " ")} ${req.url} \u2192`,
+            res2.statusCode,
+            `(${measure.duration.toFixed(3)}ms)`
+          );
+        return;
+      });
     }));
     this.server.listen(
       this.config.app.port,
