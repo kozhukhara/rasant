@@ -39,10 +39,7 @@ export interface RasantConfig {
   app: AppConfig;
 }
 
-export type Header = {
-  name: string;
-  value: number | string | readonly string[];
-};
+export type Headers = { [key: string]: string };
 
 export interface RequestRoute {
   query: { [key in string]?: string | string[] };
@@ -58,7 +55,7 @@ export interface IncomingMessage extends IncomingMessageI {
 
 export interface ServerResponse extends ServerResponseI {
   file: (path: string, options?: ResFileOptions) => Promise<any>;
-  setHeaders: (headers: Header[]) => this;
+  setHeaders: (headers: Headers) => this;
   redirect: (to: string) => this;
   status: (statusCode: number) => this;
   html: (payload: string) => this;
@@ -96,6 +93,7 @@ export interface Route {
 export interface ResFileOptions {
   disposition?: string;
   filename?: string;
+  encoding?: string;
 }
 
 export interface ResContentOptions {

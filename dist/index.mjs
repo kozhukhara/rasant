@@ -26,10 +26,11 @@ var WILDCARD = "*";
 import { parse } from "querystring";
 import * as formidable from "formidable";
 import { basename } from "path";
-import { createReadStream } from "fs";
+import { createReadStream, stat } from "fs";
 var getParseBodyFunction = (options) => {
   return function parseBody() {
     return new Promise((resolve, reject) => {
+      var _a;
       const contentType = this.headers["content-type"];
       if (contentType === "application/json") {
         let body = "";
@@ -39,7 +40,7 @@ var getParseBodyFunction = (options) => {
         let body = "";
         this.on("data", (chunk) => body += chunk);
         this.on("end", () => resolve(parse(body)));
-      } else if (contentType && contentType.startsWith("multipart/form-data")) {
+      } else if ((_a = contentType == null ? void 0 : contentType.startsWith) == null ? void 0 : _a.call(contentType, "multipart/form-data")) {
         const form = new formidable.IncomingForm(options);
         form.parse(this, (err, fields, files) => {
           if (err)
@@ -57,20 +58,26 @@ var getParseBodyFunction = (options) => {
 var resExt = {
   file(path, options) {
     return new Promise((resolve, reject) => {
-      this.setHeader(
-        "Content-Disposition",
-        `${(options == null ? void 0 : options.disposition) || "attachment"}; filename=${(options == null ? void 0 : options.filename) || basename(path)}`
-      );
-      const stream = createReadStream(path);
-      stream.on("error", reject);
-      stream.pipe(this);
-      stream.on("end", resolve);
+      stat(path, (err, stats) => {
+        if (err)
+          return reject(err);
+        this.setHeader("Content-Length", stats.size);
+        this.setHeader("Accept-Ranges", "bytes");
+        this.setHeader(
+          "Content-Disposition",
+          `${(options == null ? void 0 : options.disposition) || "attachment"}; filename=${(options == null ? void 0 : options.filename) || basename(path)}`
+        );
+        const stream = createReadStream(path);
+        stream.on("error", reject);
+        stream.pipe(this);
+        stream.on("end", resolve);
+      });
     });
   },
   setHeaders(headers) {
-    headers.forEach(({ name, value }) => {
+    for (const [name, value] of Object.entries(headers)) {
       this.setHeader(name, value);
-    });
+    }
     return this;
   },
   redirect(to) {
@@ -106,8 +113,8 @@ var resExt = {
 // src/index.ts
 import http from "http";
 import { parse as parseUrl } from "url";
-import { join as join2 } from "path";
-import { createReadStream as createReadStream2, stat } from "fs";
+import { join } from "path";
+import { createReadStream as createReadStream2, stat as stat2 } from "fs";
 import { performance } from "perf_hooks";
 var Rasant = class {
   constructor(config) {
@@ -152,15 +159,15 @@ var Rasant = class {
         if (!this.config.app.publicFolder)
           return resolve(false);
         const requestedPath = req.url || "/";
-        let fullPath = join2(this.config.app.publicFolder, requestedPath);
-        stat(fullPath, (err, stats) => {
+        let fullPath = join(this.config.app.publicFolder, requestedPath);
+        stat2(fullPath, (err, stats) => {
           if (err) {
             return resolve(false);
           }
           if (stats.isDirectory()) {
-            fullPath = join2(fullPath, "index.html");
+            fullPath = join(fullPath, "index.html");
           }
-          stat(fullPath, (err2, stats2) => {
+          stat2(fullPath, (err2, stats2) => {
             if (err2 || !stats2.isFile()) {
               return resolve(false);
             }

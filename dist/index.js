@@ -65,6 +65,7 @@ var import_fs = require("fs");
 var getParseBodyFunction = (options) => {
   return function parseBody() {
     return new Promise((resolve, reject) => {
+      var _a;
       const contentType = this.headers["content-type"];
       if (contentType === "application/json") {
         let body = "";
@@ -74,7 +75,7 @@ var getParseBodyFunction = (options) => {
         let body = "";
         this.on("data", (chunk) => body += chunk);
         this.on("end", () => resolve((0, import_querystring.parse)(body)));
-      } else if (contentType && contentType.startsWith("multipart/form-data")) {
+      } else if ((_a = contentType == null ? void 0 : contentType.startsWith) == null ? void 0 : _a.call(contentType, "multipart/form-data")) {
         const form = new formidable.IncomingForm(options);
         form.parse(this, (err, fields, files) => {
           if (err)
@@ -92,20 +93,26 @@ var getParseBodyFunction = (options) => {
 var resExt = {
   file(path, options) {
     return new Promise((resolve, reject) => {
-      this.setHeader(
-        "Content-Disposition",
-        `${(options == null ? void 0 : options.disposition) || "attachment"}; filename=${(options == null ? void 0 : options.filename) || (0, import_path.basename)(path)}`
-      );
-      const stream = (0, import_fs.createReadStream)(path);
-      stream.on("error", reject);
-      stream.pipe(this);
-      stream.on("end", resolve);
+      (0, import_fs.stat)(path, (err, stats) => {
+        if (err)
+          return reject(err);
+        this.setHeader("Content-Length", stats.size);
+        this.setHeader("Accept-Ranges", "bytes");
+        this.setHeader(
+          "Content-Disposition",
+          `${(options == null ? void 0 : options.disposition) || "attachment"}; filename=${(options == null ? void 0 : options.filename) || (0, import_path.basename)(path)}`
+        );
+        const stream = (0, import_fs.createReadStream)(path);
+        stream.on("error", reject);
+        stream.pipe(this);
+        stream.on("end", resolve);
+      });
     });
   },
   setHeaders(headers) {
-    headers.forEach(({ name, value }) => {
+    for (const [name, value] of Object.entries(headers)) {
       this.setHeader(name, value);
-    });
+    }
     return this;
   },
   redirect(to) {

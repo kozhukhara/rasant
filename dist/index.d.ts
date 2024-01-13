@@ -20,9 +20,8 @@ interface RasantConfig {
     uploads?: Options;
     app: AppConfig;
 }
-type Header = {
-    name: string;
-    value: number | string | readonly string[];
+type Headers = {
+    [key: string]: string;
 };
 interface RequestRoute {
     query: {
@@ -40,7 +39,7 @@ interface IncomingMessage extends IncomingMessage$1 {
 }
 interface ServerResponse extends ServerResponse$1 {
     file: (path: string, options?: ResFileOptions) => Promise<any>;
-    setHeaders: (headers: Header[]) => this;
+    setHeaders: (headers: Headers) => this;
     redirect: (to: string) => this;
     status: (statusCode: number) => this;
     html: (payload: string) => this;
@@ -66,6 +65,7 @@ interface Route {
 interface ResFileOptions {
     disposition?: string;
     filename?: string;
+    encoding?: string;
 }
 interface ResContentOptions {
     contentType?: string;

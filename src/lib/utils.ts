@@ -1,5 +1,5 @@
 import {
-  Header,
+  Headers,
   IncomingMessage,
   ResContentOptions,
   ResFileOptions,
@@ -9,7 +9,7 @@ import { Options as UploadOptions } from "formidable";
 import { parse } from "querystring";
 import * as formidable from "formidable";
 import { basename } from "path";
-import { createReadStream } from "fs";
+import { createReadStream, stat } from "fs";
 
 export const getParseBodyFunction = (options?: UploadOptions) => {
   return function parseBody(this: IncomingMessage): Promise<any> {
@@ -24,7 +24,7 @@ export const getParseBodyFunction = (options?: UploadOptions) => {
         let body = "";
         this.on("data", (chunk) => (body += chunk));
         this.on("end", () => resolve(parse(body)));
-      } else if (contentType && contentType.startsWith("multipart/form-data")) {
+      } else if (contentType?.startsWith?.("multipart/form-data")) {
         const form = new formidable.IncomingForm(options);
         form.parse(this, (err, fields, files) => {
           if (err) return reject(err);
@@ -42,23 +42,28 @@ export const getParseBodyFunction = (options?: UploadOptions) => {
 export const resExt: ServerResponse = <ServerResponse>{
   file(path: string, options?: ResFileOptions) {
     return new Promise<any>((resolve, reject) => {
-      this.setHeader(
-        "Content-Disposition",
-        `${options?.disposition || "attachment"}; filename=${
-          options?.filename || basename(path)
-        }`,
-      );
-      const stream = createReadStream(path);
-      stream.on("error", reject);
-      stream.pipe(this);
-      stream.on("end", resolve);
+      stat(path, (err, stats) => {
+        if (err) return reject(err);
+        this.setHeader("Content-Length", stats.size);
+        this.setHeader("Accept-Ranges", "bytes");
+        this.setHeader(
+          "Content-Disposition",
+          `${options?.disposition || "attachment"}; filename=${
+            options?.filename || basename(path)
+          }`,
+        );
+        const stream = createReadStream(path);
+        stream.on("error", reject);
+        stream.pipe(this);
+        stream.on("end", resolve);
+      });
     });
   },
 
-  setHeaders(headers: Header[]) {
-    headers.forEach(({ name, value }) => {
+  setHeaders(headers: Headers) {
+    for (const [name, value] of Object.entries(headers)) {
       this.setHeader(name, value);
-    });
+    }
     return this;
   },
 
