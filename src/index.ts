@@ -16,7 +16,9 @@ import { join } from "path";
 import { createReadStream, stat } from "fs";
 import { performance } from "perf_hooks";
 
-export class Rasant {
+export * from "./lib/types";
+
+export default class Rasant {
   private readonly routerTree: any;
   private server!: http.Server;
   private readonly config: RasantConfig;
